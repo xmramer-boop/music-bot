@@ -1,86 +1,64 @@
-from telethon import TelegramClient, events, Button    
-    
-api_id = 12688186    
-api_hash = "0cdd3e314b5a5487d2c99bbdc7afd450"    
-bot_token = "8576876988:AAHPT7WAzo_I2N0-RLGZ840GBX91qfvv0lI"    
-    
-OWNER_ID_1 = 6744331332    
-OWNER_ID_2 = 7803165903    
-    
-client = TelegramClient("bot", api_id, api_hash).start(bot_token=bot_token)    
-    
-@client.on(events.NewMessage(pattern="/start"))    
-async def start(event):    
-    if event.sender_id == OWNER_ID_1:    
-        await event.reply(    
-            "سلام علی رلکس 👑",    
-            buttons=[    
-                [Button.inline("🎵 اضافه کردن رسانه", b"media"),    
-                 Button.inline("☠️ حمله به ویسکال", b"attack")]    
-            ]    
-        )    
-    
-    elif event.sender_id == OWNER_ID_2:    
-        await event.reply(    
-            "سلام ادمین 👑",    
-            buttons=[    
-                [Button.inline("🎵 رسانه", b"media"),    
-                 Button.inline("☠️ حمله", b"attack"),    
-                 Button.inline("➕ افزودن اتکر", b"add")]    
-            ]    
-        )    
-    
-    else:    
-        await event.reply("دسترسی ندارید ❌")    
-    
-# کلیک روی دکمه‌ها    
-@client.on(events.CallbackQuery)    
-async def callbacks(event):    
-    data = event.data.decode()    
-    
-    if data == "media":    
-        await event.edit(    
-            "انتخاب رسانه:",    
-            buttons=[    
-                [Button.inline("🎵 MP3", b"mp3"),    
-                 Button.inline("🎥 MP4", b"mp4")]    
-            ]    
-        )    
-    
-    elif data == "attack":    
-        await event.edit("لینک گروه را ارسال کنید 👇")    
-    
-    elif data == "add":    
-        await event.edit("• برای افزودن اتکر شماره اکانت آن را برای ورود سشن وارد نمایید !")    
-        response = await client.wait_for_new_message(event.chat_id)    
-        phone_number = response.text    
-    
-        if phone_number.startswith("+98") and len(phone_number) == 13:    
-            await client.send_code_request(phone_number)    
-            await event.edit("• کد ارسال شده به شماره را برای تأیید وارد نمایید !")    
-            response = await client.wait_for_new_message(event.chat_id)    
-            verification_code = response.text    
-    
-            try:    
-                await client.sign_in(phone_number, verification_code)    
-                if client.is_user_authorized():    
-                    await event.edit("✓ ورود موفقیت آمیز بود سشن شما با موفقیت ساخته شد !")    
-                else:    
-                    await event.edit("• پسورد اکانت را وارد نمایید !")    
-                    response = await client.wait_for_new_message(event.chat_id)    
-                    password = response.text    
-                    await client.sign_in(phone_number, verification_code, password=password)    
-                    await event.edit("✓ ورود موفقیت آمیز بود سشن شما با موفقیت ساخته شد !")    
-            except Exception as e:    
-                await event.edit(f"خطا در ورود: {str(e)}")    
-        else:    
-            await event.edit("• شماره وارد شده معتبر نیست. لطفا شماره صحیح را وارد کنید.")    
-    
-    elif data == "mp3":    
-        await event.edit("آهنگ MP3 را ارسال کنید 🎵")    
-    
-    elif data == "mp4":    
-        await event.edit("ویدیو MP4 را ارسال کنید 🎥")    
-    
-print("Bot is running...")    
-client.run_until_disconnected()
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+api_id = 12688186
+api_hash = "0cdd3e314b5a5487d2c99bbdc7afd450"
+bot_token = "YOUR_BOT_TOKEN"
+
+app = Client("bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
+
+user_data = {}
+
+@app.on_message(filters.command("start"))
+def start(client, message):
+
+    message.reply_text(
+        "🎵 به ربات موزیک خوش آمدید",
+        reply_markup=InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("🎵 رسانه", callback_data="media"),
+                InlineKeyboardButton("☠ حمله به ویسکال", callback_data="vc")
+            ]
+        ])
+    )
+
+
+@app.on_callback_query()
+def cb(client, query):
+
+    if query.data == "media":
+        query.message.edit_text(
+            "🎵 انتخاب کن",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("🎵 MP3", callback_data="mp3"),
+                    InlineKeyboardButton("🎥 MP4", callback_data="mp4")
+                ]
+            ])
+        )
+
+    if query.data == "vc":
+        query.message.edit_text("📎 لینک گروه را ارسال کن")
+        user_data[query.from_user.id] = {"step": "link"}
+
+    if query.data == "mp3":
+        query.message.edit_text("🎵 فایل MP3 را ارسال کن")
+
+    if query.data == "mp4":
+        query.message.edit_text("🎥 فایل MP4 را ارسال کن")
+
+
+@app.on_message(filters.text & ~filters.command("start"))
+def handle(client, message):
+
+    uid = message.from_user.id
+
+    if uid in user_data and user_data[uid].get("step") == "link":
+        user_data[uid]["link"] = message.text
+        message.reply("✔ لینک ذخیره شد. الان فایل موزیک رو بفرست")
+
+        user_data[uid]["step"] = "file"
+
+
+print("Bot running...")
+app.run()
